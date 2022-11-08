@@ -19,7 +19,7 @@ my $builder = Module::Build->new(
     # NOTE bin/pmarad wants Curses but that's not required here
     configure_requires => { 'Module::Build' => '0.4004', },
     test_requires      => { 'Test2::V0'     => '0.000060', },
-    requires           => { 'perl'          => '5.26.0' },
+    requires           => { 'perl'          => '5.26.0', 'Object::Pad' => '0.52' },
     create_license     => 0,
     create_readme      => 0,
     dynamic_config     => 0,

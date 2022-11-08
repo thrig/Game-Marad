@@ -1,6 +1,6 @@
 # -*- Perl -*-
 
-package Game::Marad 0.01;
+package Game::Marad 0.02;
 use 5.26.0;
 use Object::Pad 0.52;
 class Game::Marad :strict(params);
