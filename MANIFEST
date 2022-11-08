@@ -1,0 +1,10 @@
+Build.PL
+Changes
+LICENSE
+MANIFEST
+README
+bin/pmarad
+lib/Game/Marad.pm
+t/00-load.t
+t/10-game.t
+t/pod.t
