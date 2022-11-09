@@ -5,7 +5,7 @@
 use 5.26.0;
 use warnings;
 use Curses;
-use Game::Marad;
+use Game::Marad 0.04;
 
 use constant {
     COLOFF => 2,    # two screen columns per one game column
@@ -45,16 +45,13 @@ our %piecemap = (
     67 => 'k',
 );
 
-# so with curses support rogue (and keypad) keys and it's move
-# cursor to a piece, select (enter or space?), make a motion to
-# indicate the direction. escape unlocks a selected piece
-
-our %ch_inputs = (    # regular keys (see Curses getchar docs)
+our %ch_inputs = (        # regular keys (see Curses getchar docs)
     Q       => \&move_quit,
-    ' '     => \&move_select,    # pick or complete a move
-    "\r"    => \&move_select,
-    "\n"    => \&move_select,
-    "\e"    => \&move_cancel,    # unpick a move
+    chr(10) => \&move_select,    # pick or complete a move
+    chr(13) => \&move_select,
+    chr(32) => \&move_select,
+    chr(27) => \&move_cancel,    # unpick a move
+    c       => \&move_cancel,    # unpick a move
     chr(12) => \&move_winch,     # control+l to refresh things
 
     # these are from vi(1)
@@ -87,6 +84,9 @@ our %key_inputs = (    # extended keys (mostly untested)
 run();
 
 sub init {
+    # default is 1000 milliseconds, too long unless on a 300 baud line?
+    $ENV{ESCDELAY} = 50 unless exists $ENV{ESCDELAY};
+
     # NOTE do not add "nodelay" without reviewing the getchar loop
     initscr;
     $SIG{WINCH} = 'IGNORE';    # KLUGE lock curses window size
@@ -121,16 +121,10 @@ sub run {
         my $action;
         if ( defined $key ) {
             $action = $key_inputs{$key};
-            unless ( defined $action ) {
-                #printf STDERR "DBG INPUT KEY %vx %d\n", $key, $key;
-                goto KEY;
-            }
+            goto KEY unless defined $action;
         } elsif ( defined $ch ) {
             $action = $ch_inputs{$ch};
-            unless ( defined $action ) {
-                #printf STDERR "DBG INPUT CH  %vx $ch\n", $ch;
-                goto KEY;
-            }
+            goto KEY unless defined $action;
         } else {
             # nodelay if set will probably need a napms here to avoid busy
             # looping through a getchar that then too quickly returns
@@ -205,8 +199,13 @@ sub move_southeast {
 
 sub move_cancel {
     my ($app) = @_;
-    $app->{state} = STATE_NORMAL;
-    return NEXT_KEY;
+    if ( $app->{state} == STATE_SELECT ) {
+        $app->@{qw(dirty state)} = ( 1, STATE_NORMAL );
+        return NEXT_EVENT;
+    } else {
+        $app->{state} = STATE_NORMAL;
+        return NEXT_KEY;
+    }
 }
 
 sub move_quit {
@@ -217,10 +216,17 @@ sub move_quit {
 # pick a source square, or try a move with a destination square
 sub move_select {
     my ($app) = @_;
+
     if ( $app->{state} == STATE_NORMAL ) {
-        $app->@{qw(dirty state srcy srcx)} =
-          ( 1, STATE_SELECT, $app->{cursy}, $app->{cursx} );
-        return NEXT_EVENT;
+        my ( $row, $col ) = $app->@{qw(cursy cursx)};
+        my ( $y,   $x ) = ( $row + CURS_OFF_Y, int( ( $col + CURS_OFF_X ) / COLOFF ) );
+        if ( $app->{game}->is_owner( $x, $y ) ) {
+            $app->@{qw(state srcy srcx)} = ( STATE_SELECT, $row, $col );
+            addch $row, $col, A_BOLD | ord inch $row, $col;
+            move $row, $col;
+        }
+        return NEXT_KEY;
+
     } elsif ( $app->{state} == STATE_SELECT ) {
         my ( $r, $msg ) = $app->{game}->move(
             int( ( $app->{srcx} + CURS_OFF_X ) / COLOFF ),
@@ -240,8 +246,6 @@ sub move_select {
 
 sub move_winch {
     my ($app) = @_;
-    move 0, 0;
-    clrtobot;
     $app->{dirty} = 1;
     return NEXT_EVENT;
 }
@@ -250,6 +254,8 @@ sub update {
     my ($app) = @_;
     if ( $app->{dirty} ) {
         touchwin;
+        move 0, 0;
+        clrtobot;
 
         my $score = $app->{game}->score;
         if ( $score->[0] >= VICTORY ) {
@@ -276,14 +282,16 @@ sub update {
         my $maxidx = $board->$#*;
         for my $row ( 0 .. $maxidx ) {
             for my $col ( 0 .. $maxidx ) {
-                addch $grid, $row, $col * COLOFF, $piecemap{ $board->[$row][$col] } // '?';
+                my $piece = $piecemap{ $board->[$row][$col] } // '?';
+                if ( $piece eq '.' and ( $row == 4 xor $col == 4 ) ) {
+                    # presumably colors might also help show the center
+                    # square, but I'd have to enable those...
+                    $piece = ',';
+                } elsif ( $row == 4 and $col == 4 ) {
+                    $piece = ord($piece) | A_REVERSE;
+                }
+                addch $grid, $row, $col * COLOFF, $piece;
             }
-        }
-
-        # mark the piece selected to move
-        if ( $app->{state} == STATE_SELECT ) {
-            my ( $row, $col ) = $app->@{qw(srcy srcx)};
-            addch $row, $col, A_BOLD | ord inch $row, $col;
         }
 
         noutrefresh $grid;
@@ -315,7 +323,6 @@ sub victory {
     move 0, 0;
     clrtobot;
     newgame();
-    touchwin;
 }
 
 __END__
@@ -342,10 +349,10 @@ The cursor may be moved using L<rogue(6)> keys:
    b  j  n
 
 Navigate the cursor to a piece you own and select it with space or
-enter. To cancel a selection, hit escape. To move a selected piece, move
-the cursor to some other square then hit space or enter again. If the
-move is valid, the piece will move, and the second player can now make
-their move.
+enter. To cancel a selection, hit escape or C<c>. To move a selected
+piece, move the cursor to some other square then hit space or enter
+again. If the move is valid, the piece will move, and the second player
+can now make their move.
 
 Hit Q to quit the game.
 
@@ -367,6 +374,13 @@ The usual gameplay alternates setting your pieces up to score points,
 moving them to score points, and the perhaps less important task of
 preventing the opposing player from scoring points or pushing your
 pieces out of the way.
+
+=head1 ENVIRONMENT
+
+Various environment variables will influence the L<Curses> library. In
+particular C<ESCDELAY> sets how long a function key sequence will be
+waited for. The library default of C<1000> has been set lower in this
+program, unless the user supplies a custom value.
 
 =head1 SEE ALSO
 

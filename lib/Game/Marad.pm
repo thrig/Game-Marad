@@ -1,6 +1,6 @@
 # -*- Perl -*-
 
-package Game::Marad 0.03;
+package Game::Marad 0.04;
 use 5.26.0;
 use Object::Pad 0.52;
 class Game::Marad :strict(params);
@@ -56,6 +56,14 @@ ADJUST {
 ########################################################################
 #
 # METHODS
+
+method is_owner( $x, $y ) {
+    return 0 if $x < 0 or $x >= BOARD_SIZE or $y < 0 or $y >= BOARD_SIZE;
+    my $piece = $board->[$y][$x];
+    return 0 if $piece == PIECE_EMPTY;
+    return 0 unless ( $piece >> PLAYER_BIT & 1 ) == $player;
+    return 1;
+}
 
 # try to carry out a game move involving two points, generally from a
 # player selecting a piece to move and a direction (via the destination
@@ -193,6 +201,11 @@ study the module and C<bin/pmarad> to work out these details.
 
 Returns a reference to the game board. Callers should not modify this,
 only read from it.
+
+=item B<is_owner> I<x> I<y>
+
+Returns true if the current player owns the piece on the given point,
+false otherwise.
 
 =item B<move_count>
 

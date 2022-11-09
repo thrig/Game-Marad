@@ -1,6 +1,13 @@
 Revision history for Game-Marad
 
-0.03    2022-11-??
+0.04    2022-11-08
+        Set and document ESCDELAY so hitting escape is not so terribly
+        slow. Make the select and cancel actions less bad. Better
+        highlight the center scoring square.
+
+        New is_owner method to help with select actions.
+
+0.03    2022-11-08
         Mark the piece selected to move with bold. Remove the turn
         method (a similar cleanup was done in the LISP version). Add a
         size method in the event a client needs the board size.
