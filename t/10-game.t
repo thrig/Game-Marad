@@ -129,8 +129,8 @@ my @moves = (2,4,3,3);
 }
 
 my $m = Game::Marad->new;
+is $m->size, 9;
 is $m->score, [ 0, 0 ];
-is $m->turn,      0;
 is $m->player,    0;
 my $count = $m->move_count;
 number $count;
@@ -147,7 +147,6 @@ is [ $m->move( 1,  1,  2, 1 ) ], [ 0, "invalid move type" ];
 # diagonal move into the corner has the same result regardless the
 # move count
 is [ $m->move( 1,  1,  0, 0 ) ], [ 1, "ok" ];
-is $m->turn,      1;
 is $m->player,    1;
 # do we have the same move count as prior for the 2nd player?
 is $m->move_count, $count;
@@ -155,7 +154,6 @@ is $m->move_count, $count;
 $board = $m->board;
 
 is [ $m->move( 7,  1,  8, 0 ) ], [ 1, "ok" ];
-is $m->turn,      2;
 is $m->player,    0;
 is $m->score, [ 0, 0 ];
 

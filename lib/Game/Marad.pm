@@ -1,6 +1,6 @@
 # -*- Perl -*-
 
-package Game::Marad 0.02;
+package Game::Marad 0.03;
 use 5.26.0;
 use Object::Pad 0.52;
 class Game::Marad :strict(params);
@@ -35,7 +35,6 @@ has $board      :reader;
 has $move_count :reader;
 has $player     :reader;
 has $score      :reader;
-has $turn       :reader;
 
 ADJUST {
     $board = [
@@ -52,7 +51,6 @@ ADJUST {
     $move_count = _move_count();
     $player     = 0;
     $score      = [ 0, 0 ];
-    $turn       = 0;
 }
 
 ########################################################################
@@ -100,12 +98,14 @@ method move( $srcx, $srcy, $dstx, $dsty ) {
     }
 
     $player ^= 1;
-    if ( ( ++$turn & 1 ) == 0 ) {
-        $move_count = _move_count();
-    }
+    $move_count = _move_count() if $player == 0;
 
     return 1, "ok";
 }
+
+# boards of different sizes might be supported in which case clients may
+# need something like the following to obtain that information
+method size() { return BOARD_SIZE }
 
 ########################################################################
 #
@@ -215,14 +215,14 @@ Constructor. Returns a new game in the initial game state.
 
 Returns the player C<0> or C<1> whose turn it is to move.
 
+=item B<size>
+
+Returns the size of the game board, C<9>.
+
 =item B<score>
 
 Returns an array reference containing the current score. Clients again
 should not modify this, only read from it.
-
-=item B<turn>
-
-Returns the current turn count, starting from 0 as the first turn.
 
 =back
 

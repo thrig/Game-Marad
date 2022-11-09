@@ -10,7 +10,7 @@ use Game::Marad;
 use constant {
     COLOFF => 2,    # two screen columns per one game column
 
-    CURS_START_Y => 4,    # where cursor starts in a new game
+    CURS_START_Y => 4,    # cursor location in a new game (player 1 king)
     CURS_START_X => 5,
 
     CURS_OFF_Y => 0,      # where board 0,0 is relative to display cursor
@@ -218,19 +218,16 @@ sub move_quit {
 sub move_select {
     my ($app) = @_;
     if ( $app->{state} == STATE_NORMAL ) {
-        # oh X needs a modify by uh
-        $app->@{qw(state srcy srcx)} = (
-            STATE_SELECT,
-            $app->{cursy} + CURS_OFF_Y,
-            int( ( $app->{cursx} + CURS_OFF_X ) / COLOFF )
-        );
-        return NEXT_KEY;
+        $app->@{qw(dirty state srcy srcx)} =
+          ( 1, STATE_SELECT, $app->{cursy}, $app->{cursx} );
+        return NEXT_EVENT;
     } elsif ( $app->{state} == STATE_SELECT ) {
-        my ( $dsty, $dstx ) = (
+        my ( $r, $msg ) = $app->{game}->move(
+            int( ( $app->{srcx} + CURS_OFF_X ) / COLOFF ),
+            $app->{srcy} + CURS_OFF_Y,
+            int( ( $app->{cursx} + CURS_OFF_X ) / COLOFF ),
             $app->{cursy} + CURS_OFF_Y,
-            int( ( $app->{cursx} + CURS_OFF_X ) / COLOFF )
         );
-        my ( $r, $msg ) = $app->{game}->move( $app->@{qw(srcx srcy)}, $dstx, $dsty );
         if ( $r == 1 ) {
             $app->@{qw(dirty state)} = ( 1, STATE_NORMAL );
             return NEXT_EVENT;
@@ -281,6 +278,12 @@ sub update {
             for my $col ( 0 .. $maxidx ) {
                 addch $grid, $row, $col * COLOFF, $piecemap{ $board->[$row][$col] } // '?';
             }
+        }
+
+        # mark the piece selected to move
+        if ( $app->{state} == STATE_SELECT ) {
+            my ( $row, $col ) = $app->@{qw(srcy srcx)};
+            addch $row, $col, A_BOLD | ord inch $row, $col;
         }
 
         noutrefresh $grid;
@@ -352,10 +355,10 @@ A move count (between 1 and 4) is displayed on the side of the player
 whose turn it is. A piece will move by this amount, pushing anything in
 the way, unless something is stopped by the edge of the board.
 
-The pieces move somewhat like in chess, except for the move count being
-determined at random. The King (C<K> or C<k>) can move in any direction;
-the Bishop (C<B> or C<b>) only diagonal and the Rook (C<R> or C<r>) only
-in straight lines.
+The pieces move somewhat like in chess, except for how far they move
+being determined at random. The King (C<K> or C<k>) can move in any
+direction; the Bishop (C<B> or C<b>) only diagonal and the Rook (C<R> or
+C<r>) only in straight lines.
 
 To score points, any piece must be moved and end the turn in the
 center square.
@@ -364,6 +367,12 @@ The usual gameplay alternates setting your pieces up to score points,
 moving them to score points, and the perhaps less important task of
 preventing the opposing player from scoring points or pushing your
 pieces out of the way.
+
+=head1 SEE ALSO
+
+L<gemini://thrig.me/game/marad.gmi> - game rules
+
+L<https://thrig.me/src/marad.git> - has a RULES file
 
 =head1 AUTHOR
 
