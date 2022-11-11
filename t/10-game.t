@@ -13,13 +13,15 @@ use Game::Marad;
 # _move_count
 
 # NOTE PORTABILITY may fail if rand() rolls unlucky or rand() sucks
-my $TRIALS = 10000;
-my %moves;
-for my $i ( 1 .. $TRIALS ) {
-    $moves{Game::Marad::_move_count}++;
+if ( $ENV{AUTHOR_TEST_JMATES} ) {
+    my $TRIALS = 100000;
+    my %moves;
+    for my $i ( 1 .. $TRIALS ) {
+        $moves{Game::Marad::_move_count}++;
+    }
+    $_ = sprintf "%.2f", $_ / $TRIALS for values %moves;
+    is( \%moves, { 1 => 0.25, 2 => 0.25, 3 => 0.25, 4 => 0.25 } );
 }
-$_ = sprintf "%.2f", $_ / $TRIALS for values %moves;
-is( \%moves, { 1 => 0.25, 2 => 0.25, 3 => 0.25, 4 => 0.25 } );
 
 ########################################################################
 #
