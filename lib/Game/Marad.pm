@@ -1,6 +1,6 @@
 # -*- Perl -*-
 
-package Game::Marad 0.05;
+package Game::Marad 0.06;
 use 5.26.0;
 use Object::Pad 0.52;
 class Game::Marad :strict(params);
@@ -269,6 +269,8 @@ should not modify this, only read from it.
 
 Returns a list of array references that contain a piece type, owner, and
 cell location suitable to index into a [3][2][81] lookup table.
+
+Since version 0.06.
 
 =back
 
